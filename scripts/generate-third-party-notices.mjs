@@ -45,16 +45,25 @@ const allowedJavaScriptLicenses = new Set([
   "MIT OR Apache-2.0",
 ]);
 
-const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const comparePackages = (a, b) => {
   const left = `${a.name}@${a.version}`;
   const right = `${b.name}@${b.version}`;
   return left < right ? -1 : left > right ? 1 : 0;
 };
+const pnpmExecPath = process.env.npm_execpath;
+const pnpmCommand = pnpmExecPath ? process.execPath : "pnpm";
+const pnpmArguments = [
+  ...(pnpmExecPath ? [pnpmExecPath] : []),
+  "licenses",
+  "list",
+  "--prod",
+  "--json",
+];
 const jsByLicense = JSON.parse(
-  execFileSync(pnpmCommand, ["licenses", "list", "--prod", "--json"], {
+  execFileSync(pnpmCommand, pnpmArguments, {
     cwd: desktop,
     encoding: "utf8",
+    shell: !pnpmExecPath && process.platform === "win32",
   }),
 );
 const jsPackages = Object.values(jsByLicense)

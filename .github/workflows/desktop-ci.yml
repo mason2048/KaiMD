@@ -104,6 +104,9 @@ jobs:
       - name: Scan tracked files for high-confidence secrets
         run: node scripts/check-secrets.mjs
 
+      - name: Test release binary scanner
+        run: node scripts/check-release-binary.mjs --self-test
+
   ci-gate:
     name: CI Gate
     if: always()

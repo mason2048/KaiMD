@@ -39,6 +39,10 @@ jobs:
           rustup default 1.96.0
           rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
+      - name: Remove build-machine paths from Rust artifacts
+        shell: bash
+        run: echo "RUSTFLAGS=--remap-path-prefix=${HOME}=runner --remap-path-prefix=${GITHUB_WORKSPACE}=workspace" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -66,6 +70,8 @@ jobs:
           test -n "$binary"
           lipo "$binary" -verify_arch arm64 x86_64
           lipo "$binary" -info
+          node ../../scripts/check-release-binary.mjs "$binary"
+          test -z "$(find "$app" -name '*.map' -print -quit)"
 
       - name: Upload macOS asset
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -101,6 +107,10 @@ jobs:
           rustup default 1.96.0
           rustup target add x86_64-pc-windows-msvc
 
+      - name: Remove build-machine paths from Rust artifacts
+        shell: pwsh
+        run: Add-Content -Path $env:GITHUB_ENV -Value "RUSTFLAGS=--remap-path-prefix=$env:USERPROFILE=runner --remap-path-prefix=$env:GITHUB_WORKSPACE=workspace"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -122,6 +132,7 @@ jobs:
           $exe = Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe | Select-Object -First 1
           $msi = Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi | Select-Object -First 1
           if (-not $exe -or -not $msi) { throw "Expected both NSIS and MSI installers." }
+          node ../../scripts/check-release-binary.mjs src-tauri/target/x86_64-pc-windows-msvc/release/kaimd-desktop.exe
           Copy-Item $exe.FullName "release-assets/KaiMD_${version}_x64-setup.exe"
           Copy-Item $msi.FullName "release-assets/KaiMD_${version}_x64_en-US.msi"
 

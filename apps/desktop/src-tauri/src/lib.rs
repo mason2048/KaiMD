@@ -343,18 +343,16 @@ fn is_markdown_path(path: &Path) -> bool {
 }
 
 fn normalize_open_argument(raw: &str, cwd: &Path) -> Option<String> {
-    let candidate = if let Ok(url) = Url::parse(raw) {
+    let raw_path = PathBuf::from(raw);
+    let candidate = if raw_path.is_absolute() {
+        raw_path
+    } else if let Ok(url) = Url::parse(raw) {
         if url.scheme() != "file" {
             return None;
         }
         url.to_file_path().ok()?
     } else {
-        let path = PathBuf::from(raw);
-        if path.is_absolute() {
-            path
-        } else {
-            cwd.join(path)
-        }
+        cwd.join(raw_path)
     };
     canonical_markdown_path(&candidate)
         .ok()

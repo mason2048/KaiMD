@@ -112,7 +112,7 @@ jobs:
           pnpm licenses:check
 
       - name: Build unsigned Windows installers
-        run: pnpm tauri build --target x86_64-pc-windows-msvc --bundles nsis,msi --ci --no-sign
+        run: pnpm exec tauri build --target x86_64-pc-windows-msvc --bundles nsis msi --ci --no-sign
 
       - name: Stage Windows assets
         shell: pwsh

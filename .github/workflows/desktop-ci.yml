@@ -51,6 +51,9 @@ jobs:
       - name: Test frontend and Rust
         run: pnpm check
 
+      - name: Verify release metadata
+        run: pnpm licenses:check
+
       - name: Build desktop executable
         run: pnpm tauri build --no-bundle --ci
 

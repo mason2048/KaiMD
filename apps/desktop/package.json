@@ -1,0 +1,51 @@
+{
+  "name": "kaimd-desktop",
+  "private": true,
+  "version": "0.1.0-alpha.1",
+  "description": "Open-source local-first Markdown editor for Windows and macOS",
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": "20.x",
+    "pnpm": "9.15.9"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "lint:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
+    "check": "pnpm test && pnpm build && pnpm lint:rust && pnpm test:rust",
+    "check:version": "node ../../scripts/check-versions.mjs",
+    "licenses:generate": "node ../../scripts/generate-third-party-notices.mjs",
+    "licenses:check": "node ../../scripts/generate-third-party-notices.mjs --check",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/view": "^6.43.8",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "~2",
+    "@tauri-apps/plugin-opener": "^2",
+    "@uiw/react-codemirror": "^4.25.11",
+    "highlight.js": "^11.12.0",
+    "lucide-react": "^1.31.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4",
+    "vitest": "^4.1.10"
+  }
+}

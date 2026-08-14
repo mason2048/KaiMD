@@ -1,0 +1,118 @@
+name: Desktop CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  desktop:
+    name: Desktop (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        working-directory: apps/desktop
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
+      - name: Enable pinned pnpm
+        run: corepack enable
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component clippy,rustfmt
+          rustup default 1.96.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check version
+        run: pnpm check:version
+
+      - name: Test frontend and Rust
+        run: pnpm check
+
+      - name: Build desktop executable
+        run: pnpm tauri build --no-bundle --ci
+
+  legacy:
+    name: Legacy macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Test legacy Swift implementation
+        run: swift test --package-path legacy/macos-native --no-parallel
+
+  security:
+    name: Dependency and secret review
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
+      - name: Enable pinned pnpm
+        run: corepack enable
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
+
+      - name: Install dependencies
+        working-directory: apps/desktop
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit production JavaScript dependencies
+        working-directory: apps/desktop
+        run: pnpm audit --prod --audit-level high
+
+      - name: Verify dependency license inventory
+        working-directory: apps/desktop
+        run: pnpm licenses:check
+
+      - name: Scan tracked files for high-confidence secrets
+        run: node scripts/check-secrets.mjs
+
+  ci-gate:
+    name: CI Gate
+    if: always()
+    needs: [desktop, legacy, security]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all checks
+        env:
+          DESKTOP_RESULT: ${{ needs.desktop.result }}
+          LEGACY_RESULT: ${{ needs.legacy.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
+        run: |
+          test "$DESKTOP_RESULT" = "success"
+          test "$LEGACY_RESULT" = "success"
+          test "$SECURITY_RESULT" = "success"

@@ -1,0 +1,170 @@
+name: Draft Pre-release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pre-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  macos:
+    name: macOS Universal
+    runs-on: macos-latest
+
+    defaults:
+      run:
+        working-directory: apps/desktop
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
+      - name: Enable pinned pnpm
+        run: corepack enable
+
+      - name: Install Rust and macOS targets
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component clippy,rustfmt
+          rustup default 1.96.0
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify tagged candidate
+        run: |
+          pnpm check:version -- --tag "${GITHUB_REF_NAME}"
+          pnpm check
+          pnpm licenses:check
+          swift test --package-path ../../legacy/macos-native --no-parallel
+
+      - name: Build unsigned Universal DMG
+        run: pnpm tauri build --target universal-apple-darwin --bundles app,dmg --ci --no-sign
+
+      - name: Stage macOS asset
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p release-assets
+          dmg="$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -type f -name '*.dmg' -print -quit)"
+          test -n "$dmg"
+          cp "$dmg" "release-assets/KaiMD_${version}_universal.dmg"
+          app="$(find src-tauri/target/universal-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)"
+          test -n "$app"
+          binary="$(find "$app/Contents/MacOS" -maxdepth 1 -type f -print -quit)"
+          test -n "$binary"
+          lipo "$binary" -verify_arch arm64 x86_64
+          lipo "$binary" -info
+
+      - name: Upload macOS asset
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-macos
+          path: apps/desktop/release-assets/*
+          if-no-files-found: error
+
+  windows:
+    name: Windows x64
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        working-directory: apps/desktop
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+
+      - name: Enable pinned pnpm
+        run: corepack enable
+
+      - name: Install Rust and Windows target
+        shell: bash
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component clippy,rustfmt
+          rustup default 1.96.0
+          rustup target add x86_64-pc-windows-msvc
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify tagged candidate
+        shell: bash
+        run: |
+          pnpm check:version -- --tag "${GITHUB_REF_NAME}"
+          pnpm check
+          pnpm licenses:check
+
+      - name: Build unsigned Windows installers
+        run: pnpm tauri build --target x86_64-pc-windows-msvc --bundles nsis,msi --ci --no-sign
+
+      - name: Stage Windows assets
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          New-Item -ItemType Directory -Force release-assets | Out-Null
+          $exe = Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe | Select-Object -First 1
+          $msi = Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi | Select-Object -First 1
+          if (-not $exe -or -not $msi) { throw "Expected both NSIS and MSI installers." }
+          Copy-Item $exe.FullName "release-assets/KaiMD_${version}_x64-setup.exe"
+          Copy-Item $msi.FullName "release-assets/KaiMD_${version}_x64_en-US.msi"
+
+      - name: Upload Windows assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-windows
+          path: apps/desktop/release-assets/*
+          if-no-files-found: error
+
+  draft-release:
+    name: Create Draft Pre-release
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Download release assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Add notices and checksums
+        run: |
+          cp THIRD_PARTY_NOTICES.md release-assets/
+          cd release-assets
+          find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -printf '%f\0' |
+            sort -z |
+            xargs -0 sha256sum > SHA256SUMS.txt
+
+      - name: Create unpublished pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" release-assets/* \
+            --draft \
+            --prerelease \
+            --verify-tag \
+            --title "KaiMD ${GITHUB_REF_NAME} (Alpha)" \
+            --notes "Unsigned alpha candidate. Complete docs/RELEASE_CHECKLIST.md and update these notes before manually publishing this draft."

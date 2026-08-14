@@ -1,0 +1,12 @@
+.build/
+.swiftpm/
+DerivedData/
+work/
+outputs/
+*.xcuserstate
+.DS_Store
+node_modules/
+apps/desktop/dist/
+apps/desktop/src-tauri/target/
+legacy/macos-native/.build/
+legacy/macos-native/.swiftpm/

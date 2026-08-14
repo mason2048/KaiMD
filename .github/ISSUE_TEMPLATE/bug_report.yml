@@ -1,0 +1,43 @@
+name: 缺陷报告
+description: 报告可复现的 KaiMD 问题
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: 感谢反馈。请勿上传私人文稿、凭据或完整用户路径。
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 平台
+      options:
+        - Windows 11
+        - macOS
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: KaiMD 版本
+      placeholder: 例如 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 使用不含隐私的最小示例说明如何稳定复现。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期与实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 补充信息
+      description: 可附脱敏日志、最小 Markdown 和截图。

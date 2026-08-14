@@ -1,0 +1,26 @@
+name: 功能建议
+description: 提议一个跨平台、可验收的改进
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 用户问题
+      description: 请描述当前工作流中的具体困难，而不只是功能名称。
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 期望行为
+      description: 说明 Windows 与 macOS 上应该如何工作。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 验收方式
+      description: 如何确认改进已完成且没有破坏现有编辑/预览？
+    validations:
+      required: true

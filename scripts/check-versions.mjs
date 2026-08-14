@@ -24,6 +24,20 @@ if (uniqueVersions.size !== 1 || uniqueVersions.has(undefined)) {
   process.exit(1);
 }
 
+const [coreVersion, prerelease] = packageJson.version.split("-", 2);
+const prereleaseBuild = prerelease?.match(/(?:^|\.)(\d+)$/)?.[1];
+const expectedMsiVersion = prereleaseBuild
+  ? `${coreVersion}.${Number.parseInt(prereleaseBuild, 10)}`
+  : coreVersion;
+const msiVersion = tauriConfig.bundle?.windows?.wix?.version;
+
+if (msiVersion !== expectedMsiVersion) {
+  console.error(
+    `Windows MSI version ${msiVersion ?? "missing"} does not match ${expectedMsiVersion}.`,
+  );
+  process.exit(1);
+}
+
 const tagIndex = process.argv.indexOf("--tag");
 if (tagIndex !== -1) {
   const tag = process.argv[tagIndex + 1];

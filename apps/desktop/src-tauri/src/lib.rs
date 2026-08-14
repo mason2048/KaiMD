@@ -438,12 +438,12 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building KaiMD");
 
-    app.run(|app, event| {
+    app.run(|_app, _event| {
         #[cfg(target_os = "macos")]
-        if let tauri::RunEvent::Opened { urls } = event {
+        if let tauri::RunEvent::Opened { urls } = _event {
             let cwd = std::env::current_dir().unwrap_or_default();
             let paths = collect_open_arguments(urls.iter().map(Url::as_str), &cwd);
-            queue_open_files(app, paths);
+            queue_open_files(_app, paths);
         }
     });
 }
